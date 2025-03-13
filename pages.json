@@ -1,0 +1,111 @@
+{
+  "pages": [
+    {
+      "path": "pages/index/index",
+      "style": {
+        "navigationBarTitleText": "首页",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
+      "path": "pages/user/index",
+      "style": {
+        "navigationBarTitleText": "用户资料",
+        "enablePullDownRefresh": false
+      }
+    },
+    {
+      "path": "pages/user/edit",
+      "style": {
+        "navigationBarTitleText": "编辑资料",
+        "enablePullDownRefresh": false
+      }
+    },
+    {
+      "path": "pages/asset/index",
+      "style": {
+        "navigationBarTitleText": "资产展示",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
+      "path": "pages/wallet/connect",
+      "style": {
+        "navigationBarTitleText": "连接钱包",
+        "enablePullDownRefresh": false
+      }
+    },
+    {
+      "path": "pages/post/index",
+      "style": {
+        "navigationBarTitleText": "社区广场",
+        "enablePullDownRefresh": true
+      }
+    },
+    {
+      "path": "pages/post/detail",
+      "style": {
+        "navigationBarTitleText": "帖子详情",
+        "enablePullDownRefresh": false
+      }
+    },
+    {
+      "path": "pages/post/create",
+      "style": {
+        "navigationBarTitleText": "发布帖子",
+        "enablePullDownRefresh": false
+      }
+    },
+    {
+      "path": "pages/comment/list",
+      "style": {
+        "navigationBarTitleText": "评论列表",
+        "enablePullDownRefresh": true
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "Web3社交",
+    "navigationBarBackgroundColor": "#F8F8F8",
+    "backgroundColor": "#F8F8F8"
+  },
+  "tabBar": {
+    "color": "#7A7E83",
+    "selectedColor": "#3cc51f",
+    "borderStyle": "black",
+    "backgroundColor": "#ffffff",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "iconPath": "static/icons/home.png",
+        "selectedIconPath": "static/icons/home-active.png",
+        "text": "首页"
+      },
+      {
+        "pagePath": "pages/post/index",
+        "iconPath": "static/icons/community.png",
+        "selectedIconPath": "static/icons/community-active.png",
+        "text": "社区"
+      },
+      {
+        "pagePath": "pages/asset/index",
+        "iconPath": "static/icons/asset.png",
+        "selectedIconPath": "static/icons/asset-active.png",
+        "text": "资产"
+      },
+      {
+        "pagePath": "pages/user/index",
+        "iconPath": "static/icons/user.png",
+        "selectedIconPath": "static/icons/user-active.png",
+        "text": "我的"
+      }
+    ]
+  },
+  "easycom": {
+    "autoscan": true,
+    "custom": {
+      "^u-(.*)": "uview-ui/components/u-$1/u-$1.vue"
+    }
+  }
+} 
