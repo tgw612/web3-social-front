@@ -16,7 +16,7 @@ class Web3Service {
     try {
       // 检查环境是否支持Web3
       if (typeof window !== 'undefined' && window.ethereum) {
-        this.provider = new ethers.BrowserProvider(window.ethereum)
+        this.provider = new ethers.providers.Web3Provider(window.ethereum)
         console.log('Web3服务初始化成功')
         return true
       } else {
@@ -60,7 +60,7 @@ class Web3Service {
           if (window.okxwallet) {
             const accounts = await window.okxwallet.request({ method: 'eth_requestAccounts' })
             this.address = accounts[0]
-            this.provider = new ethers.BrowserProvider(window.okxwallet)
+            this.provider = new ethers.providers.Web3Provider(window.okxwallet)
             this.signer = await this.provider.getSigner()
             this.chainId = await this.getChainId()
             this.isConnected = true
@@ -80,7 +80,7 @@ class Web3Service {
           if (window.coinbaseWalletExtension) {
             const accounts = await window.coinbaseWalletExtension.request({ method: 'eth_requestAccounts' })
             this.address = accounts[0]
-            this.provider = new ethers.BrowserProvider(window.coinbaseWalletExtension)
+            this.provider = new ethers.providers.Web3Provider(window.coinbaseWalletExtension)
             this.signer = await this.provider.getSigner()
             this.chainId = await this.getChainId()
             this.isConnected = true
@@ -209,4 +209,4 @@ class Web3Service {
 const web3Service = new Web3Service()
 Vue.prototype.$web3Service = web3Service
 
-export default web3Service 
+export default web3Service

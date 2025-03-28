@@ -1,5 +1,5 @@
 // 导入IPFS HTTP客户端
-import ipfsClient from 'js-ipfs-http-client'
+import { create as ipfsClient } from 'ipfs-http-client'
 
 // IPFS默认配置
 const DEFAULT_IPFS_CONFIG = {
@@ -141,4 +141,4 @@ const fileToBuffer = (file) => {
     reader.onerror = reject
     reader.readAsArrayBuffer(file)
   })
-} 
+}
