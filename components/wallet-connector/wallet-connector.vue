@@ -82,19 +82,51 @@
         <button class="popup-btn" @click="closeErrorPopup">确定</button>
       </view>
     </uni-popup>
+    
+    <!-- OKX钱包二维码扫码登录（悬浮窗模式） -->
+    <uni-popup ref="qrcodePopup" type="right" mask-click="false">
+      <view class="qrcode-popup floating">
+        <view class="qrcode-header">
+          <text class="popup-title">OKX钱包扫码登录</text>
+          <text class="popup-text">请使用OKX钱包APP扫描二维码</text>
+          <view class="close-btn" @click="closeQRCodePopup">
+            <uni-icons type="close" size="20" color="#666"></uni-icons>
+          </view>
+        </view>
+        
+        <view class="qrcode-container">
+          <image v-if="qrcodeUrl" class="qrcode-image" :src="qrcodeUrl" mode="aspectFit"></image>
+          <view v-else class="qrcode-loading">
+            <uni-load-more status="loading" :contentText="{ contentrefresh: '生成二维码中...' }"></uni-load-more>
+          </view>
+        </view>
+        
+        <view class="qrcode-footer">
+          <button class="popup-btn refresh-btn" @click="refreshQRCode">刷新二维码</button>
+        </view>
+      </view>
+    </uni-popup>
   </view>
 </template>
 
 <script>
 import { mapState, mapActions } from 'vuex'
 import { WALLET_TYPES } from '@/utils/web3'
+import uniPopup from '@dcloudio/uni-ui/lib/uni-popup/uni-popup'
+import uniIcons from '@dcloudio/uni-ui/lib/uni-icons/uni-icons'
 
 export default {
   name: 'wallet-connector',
+  components: {
+    uniPopup,
+    uniIcons
+  },
   data() {
     return {
       activeNetwork: 'ethereum', // 默认选择以太坊网络
       errorMessage: '',
+      qrcodeUrl: '', // OKX钱包二维码URL
+      qrcodePollingTimer: null, // 二维码状态轮询定时器
       
       // 以太坊钱包列表
       ethereumWallets: [
@@ -113,7 +145,7 @@ export default {
         {
           name: 'OKX Wallet',
           type: WALLET_TYPES.OKX,
-          logo: '/static/wallets/okx.png',
+          logo: '/static/wallets/okx.svg',
           description: 'OKX交易所官方钱包'
         },
         {
@@ -160,6 +192,16 @@ export default {
         let walletInfo
         if (this.activeNetwork === 'ethereum') {
           walletInfo = await this.connectEthWallet(walletType)
+          
+          // 检查是否需要二维码扫码登录（OKX钱包特殊处理）
+          if (walletInfo && walletInfo.needQRCode) {
+            // 关闭连接中状态
+            this.$refs.connectingPopup.close()
+            
+            // 生成并显示二维码
+            this.generateOKXQRCode()
+            return
+          }
         } else if (this.activeNetwork === 'solana') {
           walletInfo = await this.connectSolWallet(walletType)
         }
@@ -203,6 +245,116 @@ export default {
     // 关闭错误弹窗
     closeErrorPopup() {
       this.$refs.errorPopup.close()
+    },
+    
+    // 生成OKX钱包二维码
+    async generateOKXQRCode() {
+      try {
+        // 重置二维码URL
+        this.qrcodeUrl = ''
+        
+        // 显示二维码弹窗
+        this.$refs.qrcodePopup.open()
+        
+        // 调用OKX钱包SDK生成二维码
+        // 这里使用模拟数据，实际项目中应该调用OKX钱包SDK的API
+        // 参考: https://www.okx.com/web3/build/docs/connect/qrcode
+        
+        // 模拟API调用延迟
+        setTimeout(() => {
+          // 生成二维码URL (实际项目中应该从OKX API获取)
+          // 这里使用示例二维码，实际使用时需要替换为真实的OKX钱包二维码URL
+          this.qrcodeUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=okx://wallet/connect/'+Math.random()
+          
+          // 开始轮询检查扫码状态
+          this.startQRCodeStatusPolling()
+        }, 1000)
+      } catch (error) {
+        console.error('生成OKX钱包二维码失败：', error)
+        this.errorMessage = '生成二维码失败，请重试'
+        this.$refs.errorPopup.open()
+      }
+    },
+    
+    // 关闭二维码弹窗
+    closeQRCodePopup() {
+      this.$refs.qrcodePopup.close()
+      // 清除轮询定时器
+      this.clearQRCodeStatusPolling()
+    },
+    
+    // 刷新二维码
+    refreshQRCode() {
+      // 清除轮询定时器
+      this.clearQRCodeStatusPolling()
+      // 重新生成二维码
+      this.generateOKXQRCode()
+    },
+    
+    // 开始轮询检查二维码扫描状态
+    startQRCodeStatusPolling() {
+      // 清除可能存在的定时器
+      this.clearQRCodeStatusPolling()
+      
+      // 设置轮询间隔（每3秒检查一次）
+      this.qrcodePollingTimer = setInterval(() => {
+        this.checkQRCodeStatus()
+      }, 3000)
+    },
+    
+    // 清除二维码状态轮询定时器
+    clearQRCodeStatusPolling() {
+      if (this.qrcodePollingTimer) {
+        clearInterval(this.qrcodePollingTimer)
+        this.qrcodePollingTimer = null
+      }
+    },
+    
+    // 检查二维码扫描状态
+    async checkQRCodeStatus() {
+      try {
+        // 实际项目中应该调用OKX钱包SDK的API检查扫码状态
+        // 这里使用模拟数据进行演示
+        
+        // 模拟随机扫码成功（实际项目中应该根据API返回结果判断）
+        if (Math.random() < 0.1) { // 10%的概率模拟扫码成功
+          // 清除轮询定时器
+          this.clearQRCodeStatusPolling()
+          
+          // 关闭二维码弹窗
+          this.closeQRCodePopup()
+          
+          // 模拟钱包信息
+          const walletInfo = {
+            chainType: 'ethereum',
+            walletType: 'OKX',
+            address: '0x' + Math.random().toString(16).substr(2, 40),
+            balance: '0.0',
+            chainId: '1'
+          }
+          
+          // 连接成功后，使用钱包登录
+          await this.loginWithWallet()
+          
+          // 发出连接成功事件
+          this.$emit('connected', walletInfo)
+          
+          // 显示成功提示
+          uni.showToast({
+            title: '钱包连接成功',
+            icon: 'success'
+          })
+          
+          // 跳转到首页
+          setTimeout(() => {
+            uni.switchTab({
+              url: '/pages/index/index'
+            })
+          }, 1500)
+        }
+      } catch (error) {
+        console.error('检查二维码状态失败：', error)
+      }
     }
   }
 }
@@ -309,7 +461,7 @@ export default {
     }
   }
   
-  .connecting-popup, .error-popup {
+  .connecting-popup, .error-popup, .qrcode-popup {
     background-color: #fff;
     border-radius: 10rpx;
     padding: 40rpx;
@@ -337,5 +489,90 @@ export default {
       padding: 15rpx 40rpx;
     }
   }
+  
+  .qrcode-popup {
+    width: 600rpx;
+    
+    &.floating {
+      width: 450rpx;
+      height: 100%;
+      border-radius: 0;
+      border-top-left-radius: 20rpx;
+      border-bottom-left-radius: 20rpx;
+      box-shadow: -5rpx 0 15rpx rgba(0, 0, 0, 0.1);
+      display: flex;
+      flex-direction: column;
+      padding: 30rpx;
+      box-sizing: border-box;
+    }
+    
+    .qrcode-header {
+      margin-bottom: 30rpx;
+      position: relative;
+      
+      .close-btn {
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 60rpx;
+        height: 60rpx;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        
+        &:active {
+          background-color: #f0f0f0;
+        }
+      }
+    }
+    
+    .qrcode-container {
+      width: 320rpx;
+      height: 320rpx;
+      margin: 0 auto;
+      background-color: #f5f5f5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8rpx;
+      overflow: hidden;
+      box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
+      
+      .qrcode-image {
+        width: 100%;
+        height: 100%;
+      }
+      
+      .qrcode-loading {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+    }
+    
+    .qrcode-footer {
+      margin-top: 40rpx;
+      display: flex;
+      justify-content: center;
+      
+      .popup-btn {
+        flex: 1;
+        margin: 0 10rpx;
+        max-width: 320rpx;
+        
+        &.cancel-btn {
+          background-color: #f5f5f5;
+          color: #666;
+        }
+        
+        &.refresh-btn {
+          background-color: #3cc51f;
+        }
+      }
+    }
+  }
 }
-</style> 
+</style>

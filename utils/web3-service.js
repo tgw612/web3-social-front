@@ -71,6 +71,14 @@ class Web3Service {
               chainId: this.chainId,
               walletType
             }
+          } else if (window.okxwallet && window.okxwallet.isOKExWallet) {
+            // OKX钱包扫码登录
+            const qrCode = await window.okxwallet.connectQRCode()
+            return {
+              success: true,
+              qrCode,
+              walletType: 'OKX_QRCODE'
+            }
           } else {
             throw new Error('请安装OKX钱包')
           }

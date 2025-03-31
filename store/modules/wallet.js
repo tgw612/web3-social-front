@@ -97,6 +97,12 @@ const actions = {
       // 连接钱包
       const walletInfo = await connectEthereumWallet(walletType)
       
+      // 检查是否需要二维码扫码登录
+      if (walletInfo && walletInfo.needQRCode) {
+        commit('SET_CONNECTING', false)
+        return walletInfo
+      }
+      
       // 保存钱包信息
       commit('SET_WALLET_INFO', walletInfo)
       commit('SET_CONNECTED', true)
@@ -206,4 +212,4 @@ export default {
   getters,
   mutations,
   actions
-} 
+}

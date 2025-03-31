@@ -43,6 +43,50 @@ export const getSolanaConnection = () => {
 // 连接以太坊钱包
 export const connectEthereumWallet = async (walletType) => {
   try {
+    // 特殊处理OKX钱包
+    if (walletType === WALLET_TYPES.OKX) {
+      // 检查是否安装了OKX钱包扩展
+      if (window.okxwallet) {
+        try {
+          const accounts = await window.okxwallet.request({ method: 'eth_requestAccounts' })
+          if (!accounts || accounts.length === 0) {
+            throw new Error('没有授权访问账户')
+          }
+          
+          const provider = new ethers.providers.Web3Provider(window.okxwallet)
+          const address = accounts[0]
+          const balance = await provider.getBalance(address)
+          const balanceInEth = ethers.utils.formatEther(balance)
+          
+          // 获取链ID
+          const { chainId } = await provider.getNetwork()
+          
+          return {
+            chainType: CHAIN_TYPES.ETH,
+            walletType,
+            address,
+            balance: balanceInEth,
+            chainId
+          }
+        } catch (error) {
+          console.error('OKX钱包连接失败：', error)
+          throw error
+        }
+      } else {
+        // 如果没有安装OKX钱包扩展，返回需要扫码登录的标志
+        // 实际项目中，这里可以调用OKX钱包的API生成二维码
+        // 参考: https://www.okx.com/web3/build/docs/connect/qrcode
+        return {
+          chainType: CHAIN_TYPES.ETH,
+          walletType: 'OKX_QRCODE',
+          needQRCode: true,
+          // 在实际项目中，可以在这里添加生成二维码的URL或数据
+          // qrcodeData: await generateOKXQRCode()
+        }
+      }
+    }
+    
+    // 其他钱包的处理逻辑
     const provider = getEthereumProvider()
     if (!provider) {
       throw new Error('以太坊提供者不可用，请确保已安装钱包扩展或应用')
@@ -180,4 +224,4 @@ export const disconnectWallet = async (chainType) => {
     console.error('断开钱包连接失败：', error)
     throw error
   }
-} 
+}
