@@ -44,7 +44,7 @@
 
 <script>
 // 引入图表
-import uCharts from '../../../uni_modules/ucharts/u-charts/u-charts.js'
+import uCharts from '@/uni_modules/ucharts/u-charts/u-charts.js'
 
 export default {
   name: 'asset-chart',

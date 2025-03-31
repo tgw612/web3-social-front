@@ -10,14 +10,13 @@
         <uni-icons type="more-filled" size="24"></uni-icons>
       </view>
     </view>
-    
     <!-- 用户资料卡片 -->
     <scroll-view 
       class="profile-scroll" 
       scroll-y 
       @scrolltolower="loadMorePosts"
       refresher-enabled
-      :refresher-triggered="refreshing">
+      :refresher-triggered="refreshing"
       @refresherrefresh="onRefresh"
     >
       <view class="profile-card">

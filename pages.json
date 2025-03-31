@@ -7,13 +7,13 @@
         "enablePullDownRefresh": true
       }
     },
-    {
-      "path": "pages/user/index",
-      "style": {
-        "navigationBarTitleText": "用户资料",
-        "enablePullDownRefresh": false
-      }
-    },
+    // {
+    //   "path": "pages/user/index",
+    //   "style": {
+    //     "navigationBarTitleText": "用户资料",
+    //     "enablePullDownRefresh": false
+    //   }
+    // },
     {
       "path": "pages/user/edit",
       "style": {
@@ -93,13 +93,13 @@
         "iconPath": "static/icons/asset.png",
         "selectedIconPath": "static/icons/asset-active.png",
         "text": "资产"
-      },
-      {
-        "pagePath": "pages/user/index",
-        "iconPath": "static/icons/user.png",
-        "selectedIconPath": "static/icons/user-active.png",
-        "text": "我的"
       }
+      // {
+      //   "pagePath": "pages/user/index",
+      //   "iconPath": "static/icons/user.png",
+      //   "selectedIconPath": "static/icons/user-active.png",
+      //   "text": "我的"
+      // }
     ]
   },
   "easycom": {
