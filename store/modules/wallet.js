@@ -1,11 +1,13 @@
 import { 
   connectEthereumWallet, 
-  connectSolanaWallet,
   isWalletConnected,
   disconnectWallet,
   CHAIN_TYPES,
   WALLET_TYPES
 } from '@/utils/web3'
+
+// 预加载OKX WaaS服务
+import okxWaaSService from '@/utils/okx-waas'
 
 // 初始状态
 const state = {
@@ -31,13 +33,20 @@ const state = {
   connecting: false,
   
   // 错误信息
-  error: null
+  error: null,
+  
+  // OKX资产信息
+  okxAssets: {
+    // 总估值（美元）
+    totalEquity: '0',
+    // 资产明细
+    assetDetails: []
+  }
 }
 
 // getter
 const getters = {
   isETH: state => state.chainType === CHAIN_TYPES.ETH,
-  isSOL: state => state.chainType === CHAIN_TYPES.SOL,
   shortAddress: state => {
     if (!state.address) return ''
     return `${state.address.slice(0, 6)}...${state.address.slice(-4)}`
@@ -52,12 +61,17 @@ const mutations = {
   },
   
   // 设置钱包信息
-  SET_WALLET_INFO(state, { walletType, chainType, address, balance, chainId }) {
+  SET_WALLET_INFO(state, { walletType, chainType, address, balance, chainId, okxAssets }) {
     state.walletType = walletType
     state.chainType = chainType
     state.address = address
     state.balance = balance
     state.chainId = chainId
+    
+    // 如果有OKX资产信息，则更新
+    if (okxAssets) {
+      state.okxAssets = okxAssets
+    }
   },
   
   // 清除钱包信息
@@ -68,6 +82,10 @@ const mutations = {
     state.address = ''
     state.balance = '0'
     state.chainId = null
+    state.okxAssets = {
+      totalEquity: '0',
+      assetDetails: []
+    }
   },
   
   // 设置连接中状态
@@ -83,13 +101,18 @@ const mutations = {
   // 更新余额
   UPDATE_BALANCE(state, balance) {
     state.balance = balance
+  },
+  
+  // 更新OKX资产信息
+  UPDATE_OKX_ASSETS(state, okxAssets) {
+    state.okxAssets = okxAssets
   }
 }
 
 // 动作
 const actions = {
   // 连接以太坊钱包
-  async connectEthWallet({ commit }, walletType = WALLET_TYPES.METAMASK) {
+  async connectEthWallet({ commit, dispatch }, walletType = WALLET_TYPES.METAMASK) {
     try {
       commit('SET_CONNECTING', true)
       commit('SET_ERROR', null)
@@ -109,6 +132,20 @@ const actions = {
       
       // 存储到本地
       uni.setStorageSync('walletInfo', JSON.stringify(walletInfo))
+      
+      // 如果是OKX钱包，尝试获取资产信息
+      if (walletType === WALLET_TYPES.OKX) {
+        if (walletInfo.okxAssets) {
+          commit('UPDATE_OKX_ASSETS', walletInfo.okxAssets)
+        } else {
+          // 尝试获取OKX资产信息
+          try {
+            await dispatch('fetchOKXAssets')
+          } catch (assetError) {
+            console.warn('获取OKX资产信息失败，但不影响钱包连接:', assetError)
+          }
+        }
+      }
       
       return walletInfo
     } catch (error) {
@@ -185,7 +222,7 @@ const actions = {
   },
   
   // 恢复连接
-  async restoreConnection({ commit }, walletInfo) {
+  async restoreConnection({ commit, dispatch }, walletInfo) {
     try {
       // 验证钱包是否仍然连接
       const connected = await isWalletConnected(walletInfo.chainType, walletInfo.address)
@@ -193,6 +230,16 @@ const actions = {
       if (connected) {
         commit('SET_WALLET_INFO', walletInfo)
         commit('SET_CONNECTED', true)
+        
+        // 如果是OKX钱包，尝试刷新资产信息
+        if (walletInfo.walletType === WALLET_TYPES.OKX) {
+          try {
+            await dispatch('fetchOKXAssets')
+          } catch (error) {
+            console.warn('刷新OKX资产信息失败:', error)
+          }
+        }
+        
         return true
       } else {
         // 未连接则清除状态
@@ -202,6 +249,51 @@ const actions = {
     } catch (error) {
       console.error('恢复钱包连接失败：', error)
       return false
+    }
+  },
+  
+  // 获取OKX资产信息
+  async fetchOKXAssets({ commit, state }) {
+    try {
+      // 导入OKX WaaS服务
+      const okxWaaSService = await import('@/utils/okx-waas').then(module => module.default)
+      
+      // 检查是否是OKX钱包
+      if (state.walletType !== WALLET_TYPES.OKX) {
+        throw new Error('当前连接的不是OKX钱包')
+      }
+      
+      // 检查钱包是否已连接
+      if (!state.isConnected || !state.address) {
+        throw new Error('钱包未连接')
+      }
+      
+      // 设置API配置（实际应用中应从环境变量或配置文件获取）
+      // 注意：这里仅为示例，实际应用中应该从安全的地方获取这些值
+      okxWaaSService.setApiConfig({
+        apiKey: process.env.VUE_APP_OKX_API_KEY || '',
+        secretKey: process.env.VUE_APP_OKX_SECRET_KEY || '',
+        passphrase: process.env.VUE_APP_OKX_PASSPHRASE || ''
+      })
+      
+      // 获取账户总估值
+      const accountBalance = await okxWaaSService.getAccountBalance()
+      
+      // 获取资产明细
+      const assetDetails = await okxWaaSService.getAssetDetails()
+      
+      // 更新OKX资产信息
+      const okxAssets = {
+        totalEquity: accountBalance.totalEquity,
+        assetDetails: assetDetails
+      }
+      
+      commit('UPDATE_OKX_ASSETS', okxAssets)
+      
+      return okxAssets
+    } catch (error) {
+      console.error('获取OKX资产信息失败:', error)
+      throw error
     }
   }
 }

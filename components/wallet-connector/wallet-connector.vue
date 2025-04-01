@@ -5,49 +5,14 @@
       <text class="subtitle">选择您要连接的钱包类型</text>
     </view>
     
-    <view class="network-tabs">
-      <view 
-        class="network-tab" 
-        :class="{ active: activeNetwork === 'ethereum' }"
-        @click="activeNetwork = 'ethereum'"
-      >
-        <image class="network-icon" src="/static/icons/ethereum.png" mode="aspectFit"></image>
-        <text>以太坊</text>
-      </view>
-      
-      <view 
-        class="network-tab" 
-        :class="{ active: activeNetwork === 'solana' }"
-        @click="activeNetwork = 'solana'"
-      >
-        <image class="network-icon" src="/static/icons/solana.png" mode="aspectFit"></image>
-        <text>Solana</text>
-      </view>
-    </view>
+    <!-- 网络选择标签已移除 -->
     
     <view class="wallet-list">
-      <!-- 以太坊钱包 -->
-      <view v-if="activeNetwork === 'ethereum'">
+      <!-- 可用钱包列表 -->
+      <view>
         <view 
           class="wallet-item" 
           v-for="wallet in ethereumWallets" 
-          :key="wallet.type"
-          @click="connectWallet(wallet.type)"
-        >
-          <image class="wallet-logo" :src="wallet.logo" mode="aspectFit"></image>
-          <view class="wallet-info">
-            <text class="wallet-name">{{ wallet.name }}</text>
-            <text class="wallet-desc">{{ wallet.description }}</text>
-          </view>
-          <uni-icons type="right" size="18"></uni-icons>
-        </view>
-      </view>
-      
-      <!-- Solana钱包 -->
-      <view v-if="activeNetwork === 'solana'">
-        <view 
-          class="wallet-item" 
-          v-for="wallet in solanaWallets" 
           :key="wallet.type"
           @click="connectWallet(wallet.type)"
         >
@@ -114,6 +79,7 @@ import { mapState, mapActions } from 'vuex'
 import { WALLET_TYPES } from '@/utils/web3'
 import uniPopup from '@dcloudio/uni-ui/lib/uni-popup/uni-popup'
 import uniIcons from '@dcloudio/uni-ui/lib/uni-icons/uni-icons'
+import okxWaaSService from '@/utils/okx-waas'
 
 export default {
   name: 'wallet-connector',
@@ -123,12 +89,12 @@ export default {
   },
   data() {
     return {
-      activeNetwork: 'ethereum', // 默认选择以太坊网络
+      // 已移除网络选择
       errorMessage: '',
       qrcodeUrl: '', // OKX钱包二维码URL
       qrcodePollingTimer: null, // 二维码状态轮询定时器
       
-      // 以太坊钱包列表
+      // 可用钱包列表
       ethereumWallets: [
         {
           name: 'MetaMask',
@@ -147,28 +113,6 @@ export default {
           type: WALLET_TYPES.OKX,
           logo: '/static/wallets/okx.svg',
           description: 'OKX交易所官方钱包'
-        },
-        {
-          name: 'Binance Wallet',
-          type: WALLET_TYPES.BINANCE,
-          logo: '/static/wallets/binance.png',
-          description: '币安交易所官方钱包'
-        }
-      ],
-      
-      // Solana钱包列表
-      solanaWallets: [
-        {
-          name: 'Phantom',
-          type: WALLET_TYPES.PHANTOM,
-          logo: '/static/wallets/phantom.png',
-          description: '最流行的Solana钱包'
-        },
-        {
-          name: 'Solflare',
-          type: WALLET_TYPES.SOLFLARE,
-          logo: '/static/wallets/solflare.png',
-          description: 'Solana上的全功能钱包'
         }
       ]
     }
@@ -179,7 +123,7 @@ export default {
   },
   
   methods: {
-    ...mapActions('wallet', ['connectEthWallet', 'connectSolWallet']),
+    ...mapActions('wallet', ['connectEthWallet', 'fetchOKXAssets']),
     ...mapActions('user', ['loginWithWallet']),
     
     // 连接钱包
@@ -188,13 +132,58 @@ export default {
         // 显示连接中状态
         this.$refs.connectingPopup.open()
         
-        // 根据不同的网络连接不同的钱包
-        let walletInfo
-        if (this.activeNetwork === 'ethereum') {
-          walletInfo = await this.connectEthWallet(walletType)
+        // OKX钱包特殊处理
+        if (walletType === WALLET_TYPES.OKX) {
+          // 初始化OKX WaaS服务
+          await okxWaaSService.initialize()
           
-          // 检查是否需要二维码扫码登录（OKX钱包特殊处理）
-          if (walletInfo && walletInfo.needQRCode) {
+          // 检查是否安装了OKX钱包浏览器插件
+          if (okxWaaSService.isOKXWalletInstalled()) {
+            // 通过浏览器插件连接
+            const walletInfo = await okxWaaSService.connectWithExtension()
+            
+            // 关闭连接中状态
+            this.$refs.connectingPopup.close()
+            
+            // 连接成功后，使用钱包登录
+            await this.loginWithWallet()
+            
+            // 尝试获取OKX资产信息
+            try {
+              // 设置API配置（实际应用中应从环境变量或配置文件获取）
+              okxWaaSService.setApiConfig({
+                apiKey: process.env.VUE_APP_OKX_API_KEY || '',
+                secretKey: process.env.VUE_APP_OKX_SECRET_KEY || '',
+                passphrase: process.env.VUE_APP_OKX_PASSPHRASE || ''
+              })
+              
+              // 获取资产信息
+              await this.fetchOKXAssets()
+              
+              console.log('OKX资产信息获取成功')
+            } catch (assetError) {
+              console.warn('获取OKX资产信息失败，但不影响钱包连接:', assetError)
+            }
+            
+            // 发出连接成功事件
+            this.$emit('connected', walletInfo)
+            
+            // 显示成功提示
+            uni.showToast({
+              title: '钱包连接成功',
+              icon: 'success'
+            })
+            
+            // 跳转到首页
+            setTimeout(() => {
+              uni.switchTab({
+                url: '/pages/index/index'
+              })
+            }, 1500)
+            
+            return
+          } else {
+            // 如果没有安装OKX钱包浏览器插件，使用二维码扫码登录
             // 关闭连接中状态
             this.$refs.connectingPopup.close()
             
@@ -202,8 +191,20 @@ export default {
             this.generateOKXQRCode()
             return
           }
-        } else if (this.activeNetwork === 'solana') {
-          walletInfo = await this.connectSolWallet(walletType)
+        }
+        
+        // 钱包处理逻辑
+        let walletInfo
+        walletInfo = await this.connectEthWallet(walletType)
+        
+        // 检查是否需要二维码扫码登录（兼容旧代码）
+        if (walletInfo && walletInfo.needQRCode) {
+          // 关闭连接中状态
+          this.$refs.connectingPopup.close()
+          
+          // 生成并显示二维码
+          this.generateOKXQRCode()
+          return
         }
         
         // 连接成功后，使用钱包登录
@@ -256,19 +257,17 @@ export default {
         // 显示二维码弹窗
         this.$refs.qrcodePopup.open()
         
-        // 调用OKX钱包SDK生成二维码
-        // 这里使用模拟数据，实际项目中应该调用OKX钱包SDK的API
-        // 参考: https://www.okx.com/web3/build/docs/connect/qrcode
+        // 初始化OKX WaaS服务
+        await okxWaaSService.initialize()
         
-        // 模拟API调用延迟
-        setTimeout(() => {
-          // 生成二维码URL (实际项目中应该从OKX API获取)
-          // 这里使用示例二维码，实际使用时需要替换为真实的OKX钱包二维码URL
-          this.qrcodeUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=okx://wallet/connect/'+Math.random()
-          
-          // 开始轮询检查扫码状态
-          this.startQRCodeStatusPolling()
-        }, 1000)
+        // 生成二维码
+        const qrCodeData = await okxWaaSService.generateQRCode()
+        
+        // 设置二维码URL
+        this.qrcodeUrl = qrCodeData.qrCodeUri
+        
+        // 开始轮询检查扫码状态
+        this.startQRCodeStatusPolling()
       } catch (error) {
         console.error('生成OKX钱包二维码失败：', error)
         this.errorMessage = '生成二维码失败，请重试'
@@ -296,48 +295,80 @@ export default {
       // 清除可能存在的定时器
       this.clearQRCodeStatusPolling()
       
-      // 设置轮询间隔（每3秒检查一次）
-      this.qrcodePollingTimer = setInterval(() => {
-        this.checkQRCodeStatus()
-      }, 3000)
+      // 使用OKX WaaS服务开始轮询检查二维码状态
+      okxWaaSService.startQRCodePolling(async (result) => {
+        // 处理不同的状态
+        switch (result.status) {
+          case 'confirmed':
+            // 扫码确认成功
+            // 关闭二维码弹窗
+            this.closeQRCodePopup()
+            
+            // 获取钱包信息
+            const walletInfo = result.walletInfo
+            
+            // 连接成功后，使用钱包登录
+            await this.loginWithWallet()
+            
+            // 发出连接成功事件
+            this.$emit('connected', walletInfo)
+            
+            // 显示成功提示
+            uni.showToast({
+              title: '钱包连接成功',
+              icon: 'success'
+            })
+            
+            // 跳转到首页
+            setTimeout(() => {
+              uni.switchTab({
+                url: '/pages/index/index'
+              })
+            }, 1500)
+            break
+            
+          case 'rejected':
+            // 用户拒绝连接
+            this.errorMessage = '用户拒绝了连接请求'
+            this.$refs.errorPopup.open()
+            this.closeQRCodePopup()
+            break
+            
+          case 'expired':
+            // 二维码已过期
+            this.errorMessage = '二维码已过期，请刷新'
+            this.$refs.errorPopup.open()
+            break
+            
+          case 'error':
+            // 发生错误
+            this.errorMessage = '连接出错，请重试'
+            this.$refs.errorPopup.open()
+            break
+        }
+      }, 3000) // 每3秒检查一次
     },
     
     // 清除二维码状态轮询定时器
     clearQRCodeStatusPolling() {
-      if (this.qrcodePollingTimer) {
-        clearInterval(this.qrcodePollingTimer)
-        this.qrcodePollingTimer = null
-      }
+      okxWaaSService.clearQRCodePolling()
     },
     
-    // 检查二维码扫描状态
+    // 检查二维码扫描状态 - 手动检查方法
     async checkQRCodeStatus() {
       try {
-        // 实际项目中应该调用OKX钱包SDK的API检查扫码状态
-        // 这里使用模拟数据进行演示
+        const result = await okxWaaSService.checkQRCodeStatus()
         
-        // 模拟随机扫码成功（实际项目中应该根据API返回结果判断）
-        if (Math.random() < 0.1) { // 10%的概率模拟扫码成功
-          // 清除轮询定时器
-          this.clearQRCodeStatusPolling()
-          
+        // 如果已确认，处理登录流程
+        if (result.status === 'confirmed' && result.walletInfo) {
           // 关闭二维码弹窗
           this.closeQRCodePopup()
-          
-          // 模拟钱包信息
-          const walletInfo = {
-            chainType: 'ethereum',
-            walletType: 'OKX',
-            address: '0x' + Math.random().toString(16).substr(2, 40),
-            balance: '0.0',
-            chainId: '1'
-          }
           
           // 连接成功后，使用钱包登录
           await this.loginWithWallet()
           
           // 发出连接成功事件
-          this.$emit('connected', walletInfo)
+          this.$emit('connected', result.walletInfo)
           
           // 显示成功提示
           uni.showToast({

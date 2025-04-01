@@ -38,7 +38,7 @@
         <uni-load-more status="loading" :contentText="{ contentrefresh: '加载资产数据...' }"></uni-load-more>
       </view>
       
-      <!-- 资产分布图表 -->
+     <!-- 资产分布图表 -->
       <view class="asset-chart" v-if="!loading && distribution.length > 0">
         <asset-chart 
           :chartData="distribution" 
@@ -47,8 +47,8 @@
           title="资产分布"
         ></asset-chart>
       </view>
-      
-      <!-- 代币列表 -->
+      -->
+      <!-- 代币列表
       <view class="asset-list" v-if="!loading && assets.length > 0">
         <view class="section-header">
           <text class="section-title">代币资产</text>
